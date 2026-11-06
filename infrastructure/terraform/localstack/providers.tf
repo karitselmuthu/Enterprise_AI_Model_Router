@@ -10,6 +10,7 @@ provider "aws" {
 
   endpoints {
     s3             = "http://localhost:4566"
+    s3control      = "http://localhost.localstack.cloud:4566"
     ecr            = "http://localhost:4566"
     secretsmanager = "http://localhost:4566"
     sts            = "http://localhost:4566"

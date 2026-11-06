@@ -5,14 +5,14 @@ These are **separate Terraform root configurations and state files**:
 - `aws/` provisions a private ECS Fargate router, ECR, VPC networking, an
   internal ALB, CloudWatch logs, and an ECS execution role.
 - `localstack/` is Phase 1 only: an S3 artifact bucket, ECR repository, and
-  empty Secrets Manager secret against LocalStack Desktop. ECS belongs to a
-  later phase and is deliberately absent from this configuration.
+  Secrets Manager secret with a deliberately fake test credential against
+  LocalStack Desktop. ECS belongs to a later phase.
 
-Neither configuration has been applied. Review `terraform plan` before any
-`apply`; AWS NAT Gateway and ALB resources incur charges even when
+The AWS configuration has not been applied. Review its `terraform plan` before
+any `apply`; AWS NAT Gateway and ALB resources incur charges even when
 `deploy_service = false`. Use a remote, encrypted state backend for team use;
-the starter files use local state, which is ignored by Git. Do not place API
-keys in `.tfvars` or commit state files.
+the starter files use local state, which is ignored by Git. Do not place real
+API keys in `.tfvars` or commit state files.
 
 ## Real AWS
 
@@ -65,10 +65,10 @@ model-provider credentials or connectivity. Verify `/v1/execute` separately.
 Prerequisites: Docker running, LocalStack Desktop or `lstk`, a LocalStack auth
 token, and a LocalStack plan that includes ECR. The provider points the three
 Phase 1 resource services at `http://localhost:4566`, uses dummy credentials,
-and restricts the account ID to `000000000000`. STS is also mapped locally so
-the provider can read that emulated account ID; skipping that lookup while
-setting `allowed_account_ids` makes `terraform plan` fail. Never use this
-provider configuration with real AWS credentials.
+and restricts the account ID to `000000000000`. STS is mapped locally so the
+provider can read that emulated account ID. S3 Control is mapped locally
+because the AWS provider uses it to read bucket tags. Never use this provider
+configuration with real AWS credentials.
 
 ```bash
 curl -f http://localhost:4566/_localstack/health
@@ -77,14 +77,22 @@ terraform -chdir=infrastructure/terraform/localstack fmt -check
 terraform -chdir=infrastructure/terraform/localstack validate
 terraform -chdir=infrastructure/terraform/localstack plan -out=phase1.tfplan
 terraform -chdir=infrastructure/terraform/localstack show phase1.tfplan
+terraform -chdir=infrastructure/terraform/localstack apply phase1.tfplan
 ```
 
-The reviewed plan should show exactly **three additions**, with no changes or
-destructions, provided these resources are not already managed in state.
-Do not apply until that plan has been reviewed. Phase 1 acceptance also
-requires a successful apply and read checks for the S3 bucket, ECR repository,
-and secret. The secret resource has no stored API key. Phase 2 can then add
-the router image and ECS task separately.
+On a fresh LocalStack instance, the reviewed plan should show **four
+additions**: the bucket, repository, secret, and secret version, with no
+changes or destructions. Review that plan before applying it. The version
+stores only `OPENAI_API_KEY=localstack-test-only`; this value cannot authenticate
+to a real model provider, and Terraform keeps it in local state. After applying,
+check the three service resources and run `terraform plan` again to confirm no
+drift. Phase 2 can add the router image and ECS task separately.
+
+On 2026-11-07, the LocalStack apply completed on this workstation. S3, ECR,
+and the fake credential were read back successfully; a subsequent plan found
+no changes. This LocalStack instance reported persistence disabled, so those
+resources may disappear if the emulator restarts while local Terraform state
+remains. Reconcile state against a fresh instance before applying again.
 
 ## Infrastructure tests
 

@@ -15,6 +15,11 @@ run "phase1_resources" {
 
   assert {
     condition     = aws_secretsmanager_secret.router.name == "enterprise-ai-router/local/provider-config"
-    error_message = "Phase 1 must create only the named secret container."
+    error_message = "Phase 1 must create the named secret container."
+  }
+
+  assert {
+    condition     = jsondecode(aws_secretsmanager_secret_version.router_test.secret_string).OPENAI_API_KEY == "localstack-test-only"
+    error_message = "The local secret must contain only the fake test credential."
   }
 }
