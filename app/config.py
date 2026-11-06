@@ -20,6 +20,9 @@ class ModelConfig(BaseModel):
     base_url: str | None = None
     api_key_env: str | None = None
     reasoning_effort: Literal["low", "medium", "high"] | None = None
+    max_output_tokens: int = Field(default=512, ge=1, le=8192)
+    input_usd_per_million_tokens: float | None = Field(default=None, ge=0)
+    output_usd_per_million_tokens: float | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def validate_provider_settings(self) -> "ModelConfig":
@@ -27,6 +30,11 @@ class ModelConfig(BaseModel):
             raise ValueError("ollama provider requires base_url")
         if self.provider == "litellm" and not self.api_key_env:
             raise ValueError("litellm provider requires api_key_env")
+        if self.provider == "litellm" and (
+            self.input_usd_per_million_tokens is None
+            or self.output_usd_per_million_tokens is None
+        ):
+            raise ValueError("litellm provider requires configured token prices for budget checks")
         if self.base_url and not self.base_url.startswith(("http://", "https://")):
             raise ValueError("base_url must be HTTP or HTTPS")
         return self

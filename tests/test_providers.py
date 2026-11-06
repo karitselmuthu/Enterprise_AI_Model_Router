@@ -56,7 +56,11 @@ def test_litellm_provider_uses_env_credential(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setitem(sys.modules, "litellm", SimpleNamespace(acompletion=fake_completion))
     provider = LiteLLMProvider(
         ModelCategory.LRM,
-        ModelConfig(id="openai/test", provider="litellm", api_key_env="TEST_LLM_KEY", reasoning_effort="medium"),
+        ModelConfig(
+            id="openai/test", provider="litellm", api_key_env="TEST_LLM_KEY",
+            reasoning_effort="medium", input_usd_per_million_tokens=1,
+            output_usd_per_million_tokens=4,
+        ),
     )
     result = asyncio.run(provider.generate(InferenceRequest(category="LRM", prompt="Analyze root cause")))
     assert result.output == "A concise answer"
@@ -86,7 +90,7 @@ def test_restricted_direct_inference_blocks_cloud(tmp_path, monkeypatch: pytest.
     path.write_text(
         "models:\n"
         "  SLM: {id: mock-slm, provider: mock}\n"
-        "  LLM: {id: openai/test, provider: litellm, api_key_env: TEST_LLM_KEY}\n"
+        "  LLM: {id: openai/test, provider: litellm, api_key_env: TEST_LLM_KEY, input_usd_per_million_tokens: 1, output_usd_per_million_tokens: 4}\n"
         "  LRM: {id: mock-lrm, provider: mock}\n"
         "  VLM: {id: mock-vlm, provider: mock}\n",
         encoding="utf-8",

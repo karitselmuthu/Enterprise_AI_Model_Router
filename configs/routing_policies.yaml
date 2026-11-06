@@ -12,3 +12,4 @@ fallbacks:
   LRM: []
   VLM: []
 restricted_providers: [mock, ollama]
+max_cloud_estimated_cost_usd: 0.05

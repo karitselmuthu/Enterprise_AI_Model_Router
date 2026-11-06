@@ -21,6 +21,7 @@ class OllamaProvider:
             "model": self.config.id,
             "prompt": request.prompt,
             "stream": False,
+            "options": {"num_predict": self.config.max_output_tokens},
         }
         if request.image_base64:
             payload["images"] = [request.image_base64]
@@ -73,6 +74,7 @@ class LiteLLMProvider:
                 messages=[{"role": "user", "content": content}],
                 api_key=key,
                 timeout=60,
+                max_tokens=self.config.max_output_tokens,
                 **options,
             )
             output = response.choices[0].message.content

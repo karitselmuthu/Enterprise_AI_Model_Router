@@ -6,8 +6,8 @@ and data exposure. The goal of this project is a policy-aware router that
 classifies requests, selects a model, validates results, and escalates when
 needed.
 
-Phases 1–3 provide a runnable API, deterministic routing, and optional live
-providers. Callers can choose a category explicitly, request a route decision,
+Phases 1–4 provide a runnable API, deterministic routing, governance checks,
+and optional live providers. Callers can choose a category explicitly, request a route decision,
 or execute the selected model. The default configuration uses deterministic
 mocks, so no credentials or model downloads are needed for local tests.
 
@@ -17,8 +17,8 @@ The intended request path is: classify the task and sensitivity, apply routing
 policy, select a model, execute it, validate the response, and escalate when
 quality or availability requires it. Policy controls selection, and validation
 occurs before a result is returned. The current API implements deterministic
-task classification, routing policy, and provider execution. Quality checks
-and escalation are later stages.
+task classification, routing policy, provider execution, basic quality checks,
+and escalation. Enterprise evaluation and deployment are later stages.
 
 | Category | Intended enterprise tasks | Candidate provider or model |
 | --- | --- | --- |
@@ -61,14 +61,14 @@ signal takes precedence. The endpoint returns the selected category, model,
 reason, and whether a fallback was used. It does not invoke the provider.
 
 `configs/models.yaml` defines the model ID for each of `SLM`, `LLM`, `LRM`,
-and `VLM`. Set `ROUTER_MODELS_CONFIG` to load a different YAML file. In Phase 1,
-only `provider: mock` is accepted. The VLM mock accepts text prompts but does
-not ingest images. Invalid configuration prevents startup.
+and `VLM`. Set `ROUTER_MODELS_CONFIG` to load a different YAML file. The
+default uses mock providers. The VLM mock accepts image input without analyzing
+it. Invalid configuration prevents startup.
 
 The [Phase 1 specification](docs/phase-1-spec.md) defines the foundation.
 `configs/routing_policies.yaml` defines task mappings, fallbacks, and providers
 allowed for restricted requests. Set `ROUTER_POLICIES_CONFIG` to use another
-policy file. Later phases add evaluation, governance, and deployment.
+policy file. Later phases add a larger evaluation suite and deployment.
 
 ## Optional live providers
 
@@ -86,3 +86,23 @@ continues to allow an explicit category and accepts the same image fields.
 Restricted requests cannot use a LiteLLM cloud provider. Provider failures
 return HTTP 502 without exposing the upstream exception. Live provider calls
 require your own credentials and were not exercised by the deterministic tests.
+
+## Governance limits
+
+An email address or US Social Security number in a text prompt upgrades the
+request to `restricted`. Restricted text stays on a mock or local Ollama model;
+remote Ollama hosts and LiteLLM cloud models are blocked. This regex check is
+incomplete: callers must still label sensitive text and image content correctly.
+The API has no authentication yet, so do not expose it to untrusted networks.
+
+Cloud model configuration requires operator supplied input and output token
+prices. The router estimates a worst-case cost from prompt length and the
+configured maximum output tokens, then compares it with
+`max_cloud_estimated_cost_usd` in `configs/routing_policies.yaml`. These are
+estimates, not billing records; update prices when contracts change. Output
+tokens are capped at the model's `max_output_tokens` setting.
+
+Execution checks for empty or abstaining responses and tries a permitted
+fallback from the policy file. The checks do not prove factual correctness.
+Each provider attempt emits a JSON audit event with routing metadata and token
+counts, excluding prompt, image, and response bodies.

@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.contracts import ModelCategory
 from app.router.classifier import TaskType
@@ -17,6 +17,7 @@ class RoutingPolicies(BaseModel):
     task_categories: dict[TaskType, ModelCategory]
     fallbacks: dict[ModelCategory, list[ModelCategory]]
     restricted_providers: set[str]
+    max_cloud_estimated_cost_usd: float = Field(default=0.05, gt=0)
 
     @model_validator(mode="after")
     def require_complete_policy(self) -> "RoutingPolicies":

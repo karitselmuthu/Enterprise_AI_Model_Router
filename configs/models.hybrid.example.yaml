@@ -9,12 +9,18 @@ models:
     id: openai/gpt-4o-mini
     provider: litellm
     api_key_env: OPENAI_API_KEY
+    input_usd_per_million_tokens: 1.0 # Example estimate; replace with current contract price.
+    output_usd_per_million_tokens: 4.0
   LRM:
     id: openai/o4-mini
     provider: litellm
     api_key_env: OPENAI_API_KEY
     reasoning_effort: medium
+    input_usd_per_million_tokens: 2.0 # Example estimate; replace with current contract price.
+    output_usd_per_million_tokens: 8.0
   VLM:
     id: openai/gpt-4o-mini
     provider: litellm
     api_key_env: OPENAI_API_KEY
+    input_usd_per_million_tokens: 1.0 # Example estimate; replace with current contract price.
+    output_usd_per_million_tokens: 4.0
