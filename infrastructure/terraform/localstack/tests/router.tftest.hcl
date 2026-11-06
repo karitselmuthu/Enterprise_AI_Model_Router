@@ -33,3 +33,22 @@ run "phase2_container" {
   }
 
 }
+
+run "phase3_security_networking" {
+  command = plan
+
+  assert {
+    condition     = aws_vpc.router.cidr_block == "10.42.0.0/16" && length(aws_subnet.private) == 2
+    error_message = "The router needs a dedicated VPC and two subnets."
+  }
+
+  assert {
+    condition     = aws_lb.router.internal && aws_lb_target_group.router.target_type == "ip"
+    error_message = "The ALB must be internal and target ECS task IPs."
+  }
+
+  assert {
+    condition     = aws_iam_role.execution.name == "enterprise-ai-router-local-execution" && anytrue([for lb in aws_ecs_service.router.load_balancer : lb.container_port == 8000])
+    error_message = "ECS needs its execution role and ALB attachment."
+  }
+}

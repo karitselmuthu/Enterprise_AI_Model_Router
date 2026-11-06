@@ -21,17 +21,6 @@ resource "aws_secretsmanager_secret_version" "router_test" {
   })
 }
 
-data "aws_vpc" "default" {
-  default = true
-}
-
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-}
-
 resource "aws_ecs_cluster" "router" {
   name = "enterprise-ai-router-local"
 }
@@ -42,6 +31,7 @@ resource "aws_ecs_task_definition" "router" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = 512
   memory                   = 1024
+  execution_role_arn       = aws_iam_role.execution.arn
 
   container_definitions = jsonencode([{
     name      = "router"
@@ -55,6 +45,10 @@ resource "aws_ecs_task_definition" "router" {
       name  = "ROUTER_MODELS_CONFIG"
       value = "/app/configs/models.yaml"
     }]
+    secrets = [{
+      name      = "OPENAI_API_KEY"
+      valueFrom = "${aws_secretsmanager_secret.router.arn}:OPENAI_API_KEY::"
+    }]
   }])
 }
 
@@ -66,7 +60,16 @@ resource "aws_ecs_service" "router" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = data.aws_subnets.default.ids
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.task.id]
     assign_public_ip = false
   }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.router.arn
+    container_name   = "router"
+    container_port   = 8000
+  }
+
+  depends_on = [aws_lb_listener.router]
 }

@@ -5,7 +5,7 @@ These are **separate Terraform root configurations and state files**:
 - `aws/` provisions a private ECS Fargate router, ECR, VPC networking, an
   internal ALB, CloudWatch logs, and an ECS execution role.
 - `localstack/` provisions the Phase 1 bucket, ECR repository, and test secret,
-  plus the Phase 2 ECS cluster, Fargate task definition, and service.
+  plus the Phase 2 ECS service and Phase 3 VPC, IAM, secret injection, and ALB.
 
 The AWS configuration has not been applied. Review its `terraform plan` before
 any `apply`; AWS NAT Gateway and ALB resources incur charges even when
@@ -106,10 +106,14 @@ terraform -chdir=infrastructure/terraform/localstack plan \
 terraform -chdir=infrastructure/terraform/localstack apply phase2.tfplan
 ```
 
-The ECS service uses the emulator's default VPC and subnets for this phase.
-LocalStack maps the router's port 8000 to a random host port. Find it with
-`docker ps --filter name=enterprise-ai-router` and call `/health/ready` there.
-The service has no ALB yet; dedicated networking and IAM roles belong to Phase 3.
+The ECS service now uses dedicated local VPC subnets and security groups. It
+injects a deliberately fake `OPENAI_API_KEY` from Secrets Manager and attaches
+an execution role. The internal ALB exposes `/health/ready` through LocalStack.
+For a secondary emulator on port 4567, the smoke URL is
+`http://enterprise-ai-router-local.elb.localhost.localstack.cloud:4567/health/ready`.
+LocalStack's default IAM enforcement is disabled, and its container networking
+does not prove real AWS subnet isolation or provider API egress. The separate
+`aws/` configuration includes the NAT path needed for real private tasks.
 
 On 2026-11-07, the LocalStack apply completed on this workstation. S3, ECR,
 and the fake credential were read back successfully; a subsequent plan found
