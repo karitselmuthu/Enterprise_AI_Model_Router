@@ -89,9 +89,9 @@ check the three service resources and run `terraform plan` again to confirm no
 drift.
 
 Build and push the router image before deploying the ECS service. Use a tag
-unique to each build and pass it as `image_tag`. For a LocalStack instance on
-another local port, pass `-var='localstack_endpoint=http://localhost:4567'`
-on every Terraform plan or apply and keep a separate Terraform state file.
+unique to each build and pass it as `image_tag`. The provider currently accepts
+only local port 4566. Keep a separate Terraform state file for each emulator
+instance; a different port requires explicitly updating the endpoint allowlist.
 
 ```bash
 LOCAL_REPO_URL=$(terraform -chdir=infrastructure/terraform/localstack output -raw ecr_repository_url)
@@ -109,8 +109,8 @@ terraform -chdir=infrastructure/terraform/localstack apply phase2.tfplan
 The ECS service now uses dedicated local VPC subnets and security groups. It
 injects a deliberately fake `OPENAI_API_KEY` from Secrets Manager and attaches
 an execution role. The internal ALB exposes `/health/ready` through LocalStack.
-For a secondary emulator on port 4567, the smoke URL is
-`http://enterprise-ai-router-local.elb.localhost.localstack.cloud:4567/health/ready`.
+For an emulator on port 4566, the smoke URL is
+`http://enterprise-ai-router-local.elb.localhost.localstack.cloud:4566/health/ready`.
 LocalStack's default IAM enforcement is disabled, and its container networking
 does not prove real AWS subnet isolation or provider API egress. The separate
 `aws/` configuration includes the NAT path needed for real private tasks.
@@ -145,11 +145,11 @@ sh tests/infrastructure/test_terraform.sh
 ```
 
 Phase 5 live checks require a running deployment and AWS CLI. They are skipped
-in ordinary `pytest` runs. For the isolated port-4567 emulator used above:
+in ordinary `pytest` runs. For an emulator on port 4566:
 
 ```bash
-LOCALSTACK_LIVE_ENDPOINT=http://localhost:4567 \
-LOCALSTACK_LIVE_URL=http://enterprise-ai-router-local.elb.localhost.localstack.cloud:4567 \
+LOCALSTACK_LIVE_ENDPOINT=http://localhost:4566 \
+LOCALSTACK_LIVE_URL=http://enterprise-ai-router-local.elb.localhost.localstack.cloud:4566 \
   .venv/bin/python -m pytest -q tests/infrastructure/test_localstack_live.py
 ```
 
@@ -158,7 +158,7 @@ CloudWatch Logs, the fake secret, and two invalid-request responses. To remove
 only resources in an explicitly selected LocalStack Terraform state, run:
 
 ```bash
-LOCALSTACK_ENDPOINT=http://localhost:4567 \
+LOCALSTACK_ENDPOINT=http://localhost:4566 \
 TERRAFORM_ROOT=/path/to/isolated/localstack/terraform/root \
   sh tests/infrastructure/teardown_localstack.sh --yes
 ```

@@ -14,3 +14,5 @@ crash.log
 crash.*.log
 *.auto.tfvars
 *.auto.tfvars.json
+*.tf.backup
+localstack-container-backup.json
