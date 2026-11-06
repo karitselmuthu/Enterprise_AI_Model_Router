@@ -95,6 +95,74 @@ Restricted requests cannot use a LiteLLM cloud provider. Provider failures
 return HTTP 502 without exposing the upstream exception. Live provider calls
 require your own credentials and were not exercised by the deterministic tests.
 
+## Cloud-first setup
+
+Cloud-first means assigning API-backed models to **all four categories**, including
+SLM and VLM. The existing LiteLLM adapter supports this configuration; the
+default `configs/models.yaml` remains a credential-free mock setup. Save a
+private model configuration as `.env.cloud-models.yaml` (ignored by Git) and
+point `ROUTER_MODELS_CONFIG` at it. For
+example (replace model IDs and prices with values supported by your account and
+contract):
+
+```yaml
+models:
+  SLM:
+    id: provider/small-model-id
+    provider: litellm
+    api_key_env: CLOUD_API_KEY
+    input_usd_per_million_tokens: 1.0
+    output_usd_per_million_tokens: 4.0
+  LLM:
+    id: provider/general-model-id
+    provider: litellm
+    api_key_env: CLOUD_API_KEY
+    input_usd_per_million_tokens: 1.0
+    output_usd_per_million_tokens: 4.0
+  LRM:
+    id: provider/reasoning-model-id
+    provider: litellm
+    api_key_env: CLOUD_API_KEY
+    reasoning_effort: medium
+    input_usd_per_million_tokens: 1.0
+    output_usd_per_million_tokens: 4.0
+  VLM:
+    id: provider/vision-model-id
+    provider: litellm
+    api_key_env: CLOUD_API_KEY
+    input_usd_per_million_tokens: 1.0
+    output_usd_per_million_tokens: 4.0
+```
+
+Install `requirements-providers.txt`, supply the named API key through a secret
+manager or environment variable, set
+`ROUTER_MODELS_CONFIG=.env.cloud-models.yaml`, and start the API.
+Use separate `api_key_env` values when categories use different providers.
+Choose a genuinely small API model for SLM, a model that accepts the configured
+`reasoning_effort` for LRM, and a model that accepts image input for VLM.
+Confirm the provider-specific LiteLLM model IDs and parameters before enabling
+traffic. Keep keys and the private configuration out of Git.
+
+The existing routing policy still maps tasks and fallbacks to categories.
+Review `configs/routing_policies.yaml` for the desired cloud category choices
+and set `max_cloud_estimated_cost_usd` to a suitable **per-request** limit.
+Configure realistic token prices and `max_output_tokens` for each model. The
+current estimate uses prompt length and maximum output tokens; it does not
+enforce a monthly or tenant budget, and image costs may not be represented
+accurately. Add provider usage reconciliation, aggregate spend limits, and
+rate limits before relying on this for enterprise cost control.
+
+**Privacy boundary:** the current code rejects LiteLLM for `restricted`
+requests regardless of `restricted_providers`. Thus an all-cloud configuration
+cannot serve restricted requests; it returns a policy denial instead of sending
+them to a cloud API. Keep that fail-closed behavior until you have approved
+remote data handling. Supporting restricted cloud traffic requires code changes
+to the guardrail, a provider and data-residency allowlist, stronger text and
+image data classification, tenant access controls, and documented retention
+and logging rules. Test these controls and the denial path before enabling that
+traffic. The API currently has no authentication, tenant isolation, or global
+rate limiting, so deploy it only behind appropriate access controls.
+
 ## Governance limits
 
 An email address or US Social Security number in a text prompt upgrades the
