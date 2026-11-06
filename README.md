@@ -6,10 +6,11 @@ and data exposure. The goal of this project is a policy-aware router that
 classifies requests, selects a model, validates results, and escalates when
 needed.
 
-Phases 1–5 provide a runnable API, deterministic routing, governance checks,
-and optional live providers. Callers can choose a category explicitly, request a route decision,
-or execute the selected model. The default configuration uses deterministic
-mocks, so no credentials or model downloads are needed for local tests.
+The six-phase implementation provides a runnable API, deterministic routing,
+governance checks, optional live providers, evaluation, and a local Docker
+stack. Callers can choose a category explicitly, request a route decision, or
+execute the selected model. The default configuration uses deterministic mocks,
+so no credentials or model downloads are needed for local tests.
 
 ## Architecture and model categories
 
@@ -18,8 +19,8 @@ policy, select a model, execute it, validate the response, and escalate when
 quality or availability requires it. Policy controls selection, and validation
 occurs before a result is returned. The current API implements deterministic
 task classification, routing policy, provider execution, basic quality checks,
-and escalation. The evaluation dataset and runner are included; deployment is
-the remaining phase.
+and escalation. The evaluation dataset, runner, local deployment, metrics,
+and tracing hooks are included.
 
 | Category | Intended enterprise tasks | Candidate provider or model |
 | --- | --- | --- |
@@ -32,8 +33,8 @@ LRM describes a reasoning-oriented use of a language model, not necessarily a
 separate model architecture. A VLM request can also require reasoning, so a
 production route may involve more than one model stage.
 
-The planned stack is Python, FastAPI, LiteLLM, Ollama, Docker, and
-OpenTelemetry. LiteLLM and Ollama integrations are optional in Phase 3.
+The stack uses Python, FastAPI, Docker, Prometheus, Grafana, and OpenTelemetry.
+LiteLLM and Ollama integrations are optional and require model setup.
 
 ## Quick start
 
@@ -54,6 +55,12 @@ curl -X POST http://127.0.0.1:8000/v1/infer \
 ```
 
 Run tests with `.venv/bin/python -m pytest -q`.
+
+For a local container demonstration, run `docker compose up --build`. The API
+is at `http://127.0.0.1:8000/docs`, Prometheus at `http://127.0.0.1:9090`,
+and Grafana at `http://127.0.0.1:3000`. The stack binds these ports to
+localhost. The [architecture notes](docs/architecture.md) describe the
+request path, controls, and known limits.
 
 For a policy decision, call `POST /v1/route` with a `prompt`, optional
 `task_type`, `sensitivity` (`public`, `internal`, or `restricted`), and
@@ -113,6 +120,21 @@ counts, excluding prompt, image, and response bodies.
 Run `.venv/bin/python -m scripts.evaluate` for the 130-case deterministic
 routing suite. The committed [validation notes](docs/validation.md) and
 `reports/phase5_mock.json` describe results and limits. For a bounded live
-provider sample, run `.venv/bin/python -m scripts.live_validation
---max-requests 10` against a running API. The live runner never stores prompt
-or response bodies and leaves factual quality for human review.
+provider sample, run the following against a running API. The live runner
+never stores prompt or response bodies and leaves factual quality for human
+review.
+
+```bash
+.venv/bin/python -m scripts.live_validation --max-requests 10
+```
+
+## Observability and CI
+
+`GET /metrics` exposes bounded-label request and provider metrics. Each API
+response includes `X-Request-ID`, which appears in JSON audit events. The
+provisioned Grafana dashboard shows provider outcomes and p95 latency. To
+exercise optional OpenTelemetry export locally, set
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318` and run
+`docker compose --profile tracing up --build`; the collector writes basic
+trace summaries to its logs. The GitHub Actions workflow runs lint, tests,
+the 130-scenario evaluator, and a Docker build on pushes and pull requests.

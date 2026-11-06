@@ -3,7 +3,6 @@
 import json
 from pathlib import Path
 
-
 SLM = [
     "Classify a Kubernetes pod restart alert from the payments namespace.",
     "Classify a failed nightly backup ticket for the finance database.",

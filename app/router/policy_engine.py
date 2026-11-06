@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.models.contracts import ModelCategory
 from app.router.classifier import TaskType
 
-
 DEFAULT_POLICIES = Path(__file__).resolve().parent.parent.parent / "configs" / "routing_policies.yaml"
 
 

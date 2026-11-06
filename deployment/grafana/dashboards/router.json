@@ -1,0 +1,37 @@
+{
+  "id": null,
+  "uid": "enterprise-router",
+  "title": "Enterprise AI Model Router",
+  "tags": ["ai", "routing"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {"from": "now-1h", "to": "now"},
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Provider attempts by outcome",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (category, provider, outcome) (rate(router_provider_attempts_total[5m]))", "legendFormat": "{{category}} {{provider}} {{outcome}}"}]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Provider p95 latency",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le, category, provider) (rate(router_provider_duration_seconds_bucket[5m])))", "legendFormat": "{{category}} {{provider}}"}]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "HTTP errors by route",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (route, status_class) (rate(router_http_requests_total{status_class=~\"4xx|5xx\"}[5m]))", "legendFormat": "{{route}} {{status_class}}"}]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "HTTP p95 latency",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le, route) (rate(router_http_duration_seconds_bucket[5m])))", "legendFormat": "{{route}}"}]
+    }
+  ]
+}

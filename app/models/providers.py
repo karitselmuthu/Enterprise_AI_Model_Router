@@ -3,7 +3,12 @@ import os
 import httpx
 
 from app.config import ModelConfig
-from app.models.contracts import InferenceRequest, InferenceResult, ModelCategory, ModelProvider
+from app.models.contracts import (
+    InferenceRequest,
+    InferenceResult,
+    ModelCategory,
+    ModelProvider,
+)
 from app.models.mock import MockProvider
 
 

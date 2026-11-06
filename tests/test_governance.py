@@ -4,9 +4,9 @@ import logging
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import create_app
 from app.config import ModelConfig
 from app.governance.guardrails import model_allowed
+from app.main import create_app
 from app.models.contracts import InferenceResult
 from app.router.classifier import Sensitivity
 from app.router.policy_engine import load_policies
@@ -67,9 +67,8 @@ def test_quality_failure_escalates_to_configured_fallback(monkeypatch: pytest.Mo
 
 def test_audit_event_excludes_prompt_and_output(caplog: pytest.LogCaptureFixture) -> None:
     secret_text = "incident alice@example.com"
-    with caplog.at_level(logging.INFO, logger="enterprise_router.audit"):
-        with TestClient(create_app()) as client:
-            response = client.post("/v1/execute", json={"prompt": secret_text})
+    with caplog.at_level(logging.INFO, logger="enterprise_router.audit"), TestClient(create_app()) as client:
+        response = client.post("/v1/execute", json={"prompt": secret_text})
     assert response.status_code == 200
     records = [json.loads(record.message) for record in caplog.records if record.name == "enterprise_router.audit"]
     assert records and records[-1]["sensitivity"] == "restricted"

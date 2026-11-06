@@ -6,7 +6,6 @@ from app.config import ModelConfig
 from app.router.classifier import Sensitivity
 from app.router.policy_engine import RoutingPolicies
 
-
 EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
 US_SSN = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "host.docker.internal"}

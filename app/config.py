@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.contracts import ModelCategory
 
-
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "configs" / "models.yaml"
 
 

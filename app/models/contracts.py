@@ -1,7 +1,7 @@
-from enum import StrEnum
-from typing import Literal, Protocol
 import base64
 import binascii
+from enum import StrEnum
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 

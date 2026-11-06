@@ -1,4 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from time import perf_counter
+
+from fastapi import APIRouter, HTTPException, Request
+from opentelemetry import trace
 from pydantic import BaseModel
 
 from app.config import RouterConfig
@@ -7,9 +10,15 @@ from app.governance.audit import record_attempt
 from app.governance.guardrails import effective_sensitivity, model_allowed
 from app.models.contracts import InferenceRequest, InferenceResult, ModelCategory
 from app.models.providers import ProviderFailure, make_provider
+from app.observability.metrics import observe_provider
 from app.router.classifier import ExecutionRequest, RoutingRequest
 from app.router.policy_engine import RoutingPolicies
-from app.router.routing_engine import PolicyDenied, RouteUnavailable, RoutingDecision, RoutingEngine
+from app.router.routing_engine import (
+    PolicyDenied,
+    RouteUnavailable,
+    RoutingDecision,
+    RoutingEngine,
+)
 
 
 class ExecutionResult(BaseModel):
@@ -17,6 +26,9 @@ class ExecutionResult(BaseModel):
     result: InferenceResult
     quality: QualityResult
     attempts: int
+
+
+tracer = trace.get_tracer("enterprise_router.provider")
 
 
 def build_router(config: RouterConfig, policies: RoutingPolicies) -> APIRouter:
@@ -43,23 +55,36 @@ def build_router(config: RouterConfig, policies: RoutingPolicies) -> APIRouter:
         ]
 
     @router.post("/v1/infer", response_model=InferenceResult, response_model_exclude_none=True)
-    async def infer(request: InferenceRequest) -> InferenceResult:
+    async def infer(request: InferenceRequest, http_request: Request) -> InferenceResult:
         model = config.models[request.category]
         if not model.enabled:
             raise HTTPException(status_code=503, detail="Selected model is unavailable")
         sensitivity = effective_sensitivity(request.prompt, request.sensitivity)
         if not model_allowed(request.prompt, sensitivity, model, policies):
             raise HTTPException(status_code=403, detail="Selected model is not permitted by privacy or budget policy")
-        audit_fields = dict(
-            category=request.category.value, model_id=model.id, provider=model.provider,
-            sensitivity=sensitivity.value,
-        )
+        audit_fields = {
+            "category": request.category.value,
+            "model_id": model.id,
+            "provider": model.provider,
+            "sensitivity": sensitivity.value,
+            "request_id": http_request.state.request_id,
+            "entry_point": "direct_infer",
+        }
+        start = perf_counter()
         try:
-            result = await providers[request.category].generate(request)
+            with tracer.start_as_current_span("provider.generate") as span:
+                span.set_attribute("model.category", request.category.value)
+                span.set_attribute("model.provider", model.provider)
+                result = await providers[request.category].generate(request)
         except ProviderFailure as exc:
+            observe_provider(request.category.value, model.provider, "provider_failure", perf_counter() - start)
             record_attempt(**audit_fields, outcome="provider_failure")
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         quality = assess_quality(result)
+        observe_provider(
+            request.category.value, model.provider,
+            "accepted" if quality.accepted else "quality_failure", perf_counter() - start,
+        )
         record_attempt(**audit_fields, outcome="accepted" if quality.accepted else "quality_failure", result=result)
         if not quality.accepted:
             raise HTTPException(status_code=502, detail="Provider output did not pass quality checks")
@@ -75,7 +100,7 @@ def build_router(config: RouterConfig, policies: RoutingPolicies) -> APIRouter:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     @router.post("/v1/execute", response_model=ExecutionResult)
-    async def execute(request: ExecutionRequest) -> ExecutionResult:
+    async def execute(request: ExecutionRequest, http_request: Request) -> ExecutionResult:
         first = route(request)
         candidates = [first, *engine.escalation_candidates(request, first)]
         for attempt, decision in enumerate(candidates, start=1):
@@ -86,17 +111,31 @@ def build_router(config: RouterConfig, policies: RoutingPolicies) -> APIRouter:
                 image_base64=request.image_base64,
                 image_mime_type=request.image_mime_type,
             )
-            audit_fields = dict(
-                category=decision.category.value, model_id=decision.model_id,
-                provider=decision.provider, sensitivity=decision.sensitivity.value,
-                task_type=decision.task_type.value, fallback_used=decision.fallback_used,
-            )
+            audit_fields = {
+                "category": decision.category.value,
+                "model_id": decision.model_id,
+                "provider": decision.provider,
+                "sensitivity": decision.sensitivity.value,
+                "task_type": decision.task_type.value,
+                "fallback_used": decision.fallback_used,
+                "request_id": http_request.state.request_id,
+                "entry_point": "routed_execute",
+            }
+            start = perf_counter()
             try:
-                result = await providers[decision.category].generate(inference)
+                with tracer.start_as_current_span("provider.generate") as span:
+                    span.set_attribute("model.category", decision.category.value)
+                    span.set_attribute("model.provider", decision.provider)
+                    result = await providers[decision.category].generate(inference)
             except ProviderFailure:
+                observe_provider(decision.category.value, decision.provider, "provider_failure", perf_counter() - start)
                 record_attempt(**audit_fields, outcome="provider_failure")
                 continue
             quality = assess_quality(result)
+            observe_provider(
+                decision.category.value, decision.provider,
+                "accepted" if quality.accepted else "quality_failure", perf_counter() - start,
+            )
             record_attempt(
                 **audit_fields, outcome="accepted" if quality.accepted else "quality_failure", result=result
             )
