@@ -95,6 +95,48 @@ Restricted requests cannot use a LiteLLM cloud provider. Provider failures
 return HTTP 502 without exposing the upstream exception. Live provider calls
 require your own credentials and were not exercised by the deterministic tests.
 
+## Local-first model options
+
+Local-first runs all four categories through Ollama on your Mac. These are
+**candidate model IDs**, not quality rankings; test them against your own tasks.
+The sizes below are approximate Ollama downloads, **not RAM requirements**.
+Runtime memory also depends on context length, image input, and how many models
+remain loaded. Start with one model at a time when memory is tight.
+
+| Category | Smaller option | Larger options | Use |
+| --- | --- | --- | --- |
+| SLM | [`qwen2.5:0.5b`](https://ollama.com/library/qwen2.5) (0.4 GB) or [`smollm2:360m`](https://ollama.com/library/smollm2) (0.7 GB) | `qwen3:1.7b` (1.4 GB), `smollm2:1.7b` (1.8 GB) | Ticket classification and short extraction; check accuracy on your labels. |
+| LLM | [`qwen3:4b`](https://ollama.com/library/qwen3) (2.5 GB) or [`gemma3:4b`](https://ollama.com/library/gemma3) (3.4 GB) | `qwen3:8b` (5.2 GB), `gemma3:12b` (8.2 GB) | Summaries and documentation; larger choices need more memory. |
+| LRM | [`deepseek-r1:1.5b`](https://ollama.com/library/deepseek-r1) (1.1 GB) | `deepseek-r1:7b` (4.7 GB), `deepseek-r1:14b` (9.0 GB), or `qwen3:8b` (5.2 GB) | Try reasoning tasks locally; verify the final answer rather than trusting the model's reasoning text. |
+| VLM | [`qwen2.5vl:3b`](https://ollama.com/library/qwen2.5vl) (3.2 GB) or `gemma3:4b` (3.4 GB) | `qwen2.5vl:7b` (6.0 GB), `gemma3:12b` (8.2 GB) | Screenshots and diagrams; use a tag listed as accepting images. |
+
+Three starting profiles are: **compact** (`qwen2.5:0.5b`, `qwen3:4b`,
+`deepseek-r1:1.5b`, `qwen2.5vl:3b`); **balanced** (`qwen3:1.7b`, `qwen3:8b`,
+`deepseek-r1:7b`, `qwen2.5vl:7b`); and **larger** (`smollm2:1.7b`,
+`gemma3:12b`, `deepseek-r1:14b`, `gemma3:12b`). The order in each profile is
+SLM, LLM, LRM, VLM. A model can serve multiple categories, but this router
+currently configures one model per category. The larger profile is only a
+candidate for Macs with ample available memory; download size alone cannot
+establish that it will run comfortably.
+
+To use a profile, pull its distinct model tags with `ollama pull <model-id>`.
+Copy `configs/models.hybrid.example.yaml` to an ignored private file such as
+`.env.local-models.yaml`, set every category's `provider: ollama`, `id` to the
+chosen tag, and `base_url: http://127.0.0.1:11434`. Remove cloud-only fields
+such as `api_key_env` and token prices. Set
+`ROUTER_MODELS_CONFIG=.env.local-models.yaml` before starting FastAPI. Ollama
+must be running, and its host must be reachable from the API process. The
+current Ollama adapter does not apply `reasoning_effort`; omit that setting
+for local models.
+
+Run `.venv/bin/python -m scripts.evaluate` offline to check deterministic
+**routing decisions**. It does not score generated answers. For actual local
+generation, call `POST /v1/execute` or use the bounded live runner after
+starting the API. Review answer quality manually; the live runner records
+latency but does not judge correctness.
+After the model downloads finish, local Ollama calls do not need a model API
+key. Keep the configured Ollama URL local for restricted requests.
+
 ## Cloud-first setup
 
 Cloud-first means assigning API-backed models to **all four categories**, including
