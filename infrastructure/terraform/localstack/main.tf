@@ -49,6 +49,14 @@ resource "aws_ecs_task_definition" "router" {
       name      = "OPENAI_API_KEY"
       valueFrom = "${aws_secretsmanager_secret.router.arn}:OPENAI_API_KEY::"
     }]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.router.name
+        awslogs-region        = "us-east-1"
+        awslogs-stream-prefix = "router"
+      }
+    }
   }])
 }
 

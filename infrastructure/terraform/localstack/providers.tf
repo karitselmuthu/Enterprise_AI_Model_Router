@@ -17,6 +17,7 @@ provider "aws" {
     elasticloadbalancing   = var.localstack_endpoint
     elasticloadbalancingv2 = var.localstack_endpoint
     iam                    = var.localstack_endpoint
+    logs                   = var.localstack_endpoint
     secretsmanager         = var.localstack_endpoint
     sts                    = var.localstack_endpoint
   }

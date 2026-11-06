@@ -5,7 +5,7 @@ These are **separate Terraform root configurations and state files**:
 - `aws/` provisions a private ECS Fargate router, ECR, VPC networking, an
   internal ALB, CloudWatch logs, and an ECS execution role.
 - `localstack/` provisions the Phase 1 bucket, ECR repository, and test secret,
-  plus the Phase 2 ECS service and Phase 3 VPC, IAM, secret injection, and ALB.
+  plus the Phase 2 ECS service, Phase 3 VPC/IAM/ALB, and Phase 4 logs.
 
 The AWS configuration has not been applied. Review its `terraform plan` before
 any `apply`; AWS NAT Gateway and ALB resources incur charges even when
@@ -114,6 +114,15 @@ For a secondary emulator on port 4567, the smoke URL is
 LocalStack's default IAM enforcement is disabled, and its container networking
 does not prove real AWS subnet isolation or provider API egress. The separate
 `aws/` configuration includes the NAT path needed for real private tasks.
+
+Phase 4 sends ECS container stdout to `/ecs/enterprise-ai-router-local` with
+seven-day retention. Call `/metrics` on the ALB to read request, provider,
+routing-decision, and cloud-cost-rejection counters. The router's
+`max_cloud_estimated_cost_usd` policy uses configured token prices and
+`max_output_tokens` to reject a cloud model before invocation when its
+per-request estimate exceeds the ceiling. This is an estimate, not an AWS
+account spending limit; LocalStack does not emulate AWS Budgets. The mock
+providers used by this deployment have zero estimated cloud spend.
 
 On 2026-11-07, the LocalStack apply completed on this workstation. S3, ECR,
 and the fake credential were read back successfully; a subsequent plan found

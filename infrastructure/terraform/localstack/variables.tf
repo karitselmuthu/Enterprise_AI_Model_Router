@@ -1,7 +1,7 @@
 variable "image_tag" {
   description = "Tag already pushed to the LocalStack ECR repository."
   type        = string
-  default     = "phase2-a9b8e16"
+  default     = "phase4-283f196"
 }
 
 variable "localstack_endpoint" {

@@ -10,7 +10,7 @@ from app.governance.audit import record_attempt
 from app.governance.guardrails import effective_sensitivity, model_allowed
 from app.models.contracts import InferenceRequest, InferenceResult, ModelCategory
 from app.models.providers import ProviderFailure, make_provider
-from app.observability.metrics import observe_provider
+from app.observability.metrics import observe_provider, observe_route
 from app.router.classifier import ExecutionRequest, RoutingRequest
 from app.router.policy_engine import RoutingPolicies
 from app.router.routing_engine import (
@@ -93,7 +93,9 @@ def build_router(config: RouterConfig, policies: RoutingPolicies) -> APIRouter:
     @router.post("/v1/route", response_model=RoutingDecision)
     def route(request: RoutingRequest) -> RoutingDecision:
         try:
-            return engine.route(request)
+            decision = engine.route(request)
+            observe_route(decision.category.value, decision.provider, decision.fallback_used)
+            return decision
         except PolicyDenied as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         except RouteUnavailable as exc:

@@ -52,3 +52,12 @@ run "phase3_security_networking" {
     error_message = "ECS needs its execution role and ALB attachment."
   }
 }
+
+run "phase4_observability" {
+  command = plan
+
+  assert {
+    condition     = aws_cloudwatch_log_group.router.retention_in_days == 7
+    error_message = "ECS logs must have bounded retention."
+  }
+}

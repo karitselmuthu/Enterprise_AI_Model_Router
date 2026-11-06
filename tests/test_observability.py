@@ -16,6 +16,7 @@ def test_metrics_and_audit_share_request_id(caplog: pytest.LogCaptureFixture) ->
     assert response.headers["X-Request-ID"]
     assert metrics.status_code == 200
     assert "router_provider_attempts_total" in metrics.text
+    assert "router_routing_decisions_total" in metrics.text
     assert "router_http_requests_total" in metrics.text
     assert 'route="/v1/execute"' in metrics.text
     assert marker not in metrics.text

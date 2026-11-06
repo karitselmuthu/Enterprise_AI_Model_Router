@@ -8,6 +8,7 @@ from app.config import ModelConfig
 from app.governance.guardrails import model_allowed
 from app.main import create_app
 from app.models.contracts import InferenceResult
+from app.observability.metrics import BUDGET_REJECTIONS
 from app.router.classifier import Sensitivity
 from app.router.policy_engine import load_policies
 
@@ -81,7 +82,9 @@ def test_cloud_cost_ceiling_blocks_oversized_estimate() -> None:
         id="openai/test", provider="litellm", api_key_env="TEST_LLM_KEY",
         input_usd_per_million_tokens=100, output_usd_per_million_tokens=100,
     )
+    before = BUDGET_REJECTIONS.labels("litellm")._value.get()
     assert not model_allowed("Explain this incident", Sensitivity.PUBLIC, model, load_policies())
+    assert BUDGET_REJECTIONS.labels("litellm")._value.get() == before + 1
 
 
 def test_restricted_data_rejects_remote_ollama_host() -> None:

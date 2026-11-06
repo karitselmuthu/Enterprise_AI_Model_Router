@@ -3,6 +3,7 @@ import re
 from urllib.parse import urlparse
 
 from app.config import ModelConfig
+from app.observability.metrics import observe_budget_rejection
 from app.router.classifier import Sensitivity
 from app.router.policy_engine import RoutingPolicies
 
@@ -31,6 +32,7 @@ def model_allowed(
     prompt: str, sensitivity: Sensitivity, model: ModelConfig, policies: RoutingPolicies
 ) -> bool:
     if model.provider == "litellm" and estimated_max_cost_usd(prompt, model) > policies.max_cloud_estimated_cost_usd:
+        observe_budget_rejection(model.provider)
         return False
     if sensitivity != Sensitivity.RESTRICTED:
         return True
