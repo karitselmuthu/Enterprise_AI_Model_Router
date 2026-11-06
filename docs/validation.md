@@ -31,7 +31,18 @@ counts where available, and estimated cost from operator configured prices.
 It stores neither prompts nor responses. It does not score factual quality;
 reviewers must assess answer correctness, usefulness, and safety separately.
 Vision samples need real image fixtures and are excluded from this text-only
-live runner. No live provider benchmark has been run for the committed report.
+live runner. No multi-request live provider benchmark has been run for the
+committed report.
+
+## Local Ollama smoke check
+
+On 2026-11-06, one fictional production outage prompt was sent through the
+`OllamaProvider` adapter to the locally installed `qwen2.5-coder:1.5b` model.
+The model returned `critical`, matching the requested severity category. The
+adapter reported 59 prompt tokens, 2 completion tokens, and 2,576.1 ms elapsed
+time. This verifies one real local provider call; it is not a latency
+distribution or a general task-quality result. The metadata is preserved in
+`reports/local_ollama_smoke.json`.
 
 The current suite simulates disabled-model failures and validates fallback
 behavior. Separate deployment testing should exercise connection failures,

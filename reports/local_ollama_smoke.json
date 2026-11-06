@@ -1,0 +1,12 @@
+{
+  "date": "2026-11-06",
+  "mode": "single-local-provider-smoke",
+  "model_id": "qwen2.5-coder:1.5b",
+  "provider": "ollama",
+  "task": "classify severity of a fictional production payment API outage",
+  "expected_severity": "critical",
+  "observed_severity": "critical",
+  "prompt_tokens": 59,
+  "completion_tokens": 2,
+  "latency_ms": 2576.1
+}
