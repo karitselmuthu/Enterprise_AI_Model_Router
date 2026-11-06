@@ -9,6 +9,28 @@ needed.
 Phase 1 provides a runnable API foundation. Callers currently choose a category
 explicitly, and all four providers are deterministic mocks.
 
+## Architecture and model categories
+
+The intended request path is: classify the task and sensitivity, apply routing
+policy, select a model, execute it, validate the response, and escalate when
+quality or availability requires it. Policy controls selection, and validation
+occurs before a result is returned. The current Phase 1 API implements the
+provider contract and mock execution; the later stages are planned work.
+
+| Category | Intended enterprise tasks | Candidate provider or model |
+| --- | --- | --- |
+| **SLM** — Small Language Model | Classify IT tickets, extract incident metadata, route support requests, and summarize short operational logs. | A small Qwen instruct model or SmolLM2, potentially served locally through Ollama. |
+| **LLM** — Large Language Model | Generate technical documentation, answer enterprise knowledge-base questions, and summarize complex incidents. | GPT or Claude through a configured API. |
+| **LRM** — Large Reasoning Model | Analyze root causes, assess infrastructure migration dependencies, and produce remediation plans. | A reasoning-capable model with configurable reasoning effort. |
+| **VLM** — Vision Language Model | Interpret monitoring dashboards, architecture diagrams, scanned documents, and screenshots. | A Qwen-VL model or multimodal GPT. |
+
+LRM describes a reasoning-oriented use of a language model, not necessarily a
+separate model architecture. A VLM request can also require reasoning, so a
+production route may involve more than one model stage.
+
+The planned stack is Python, FastAPI, LiteLLM, Ollama, Docker, and
+OpenTelemetry. Phase 1 currently uses Python and FastAPI with mock providers.
+
 ## Quick start
 
 Requires Python 3.11 or newer.
