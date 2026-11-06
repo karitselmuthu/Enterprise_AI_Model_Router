@@ -4,10 +4,9 @@ These are **separate Terraform root configurations and state files**:
 
 - `aws/` provisions a private ECS Fargate router, ECR, VPC networking, an
   internal ALB, CloudWatch logs, and an ECS execution role.
-- `localstack/` provisions local S3, ECR, Secrets Manager, VPC metadata, logs,
-  and an ECS task/service against a LocalStack Desktop instance. Its Fargate
-  task runs on the local Docker engine; it does **not** recreate AWS networking
-  or API Gateway behavior.
+- `localstack/` is Phase 1 only: an S3 artifact bucket, ECR repository, and
+  empty Secrets Manager secret against LocalStack Desktop. ECS belongs to a
+  later phase and is deliberately absent from this configuration.
 
 Neither configuration has been applied. Review `terraform plan` before any
 `apply`; AWS NAT Gateway and ALB resources incur charges even when
@@ -64,34 +63,28 @@ model-provider credentials or connectivity. Verify `/v1/execute` separately.
 ## LocalStack Desktop
 
 Prerequisites: Docker running, LocalStack Desktop or `lstk`, a LocalStack auth
-token, and a LocalStack plan that includes ECR. The provider points at
-`http://localhost:4566` with local test credentials. It must not be used for
-real AWS.
+token, and a LocalStack plan that includes ECR. The provider points the three
+Phase 1 resource services at `http://localhost:4566`, uses dummy credentials,
+and restricts the account ID to `000000000000`. STS is also mapped locally so
+the provider can read that emulated account ID; skipping that lookup while
+setting `allowed_account_ids` makes `terraform plan` fail. Never use this
+provider configuration with real AWS credentials.
 
 ```bash
+curl -f http://localhost:4566/_localstack/health
 terraform -chdir=infrastructure/terraform/localstack init
-terraform -chdir=infrastructure/terraform/localstack plan
-terraform -chdir=infrastructure/terraform/localstack apply
+terraform -chdir=infrastructure/terraform/localstack fmt -check
+terraform -chdir=infrastructure/terraform/localstack validate
+terraform -chdir=infrastructure/terraform/localstack plan -out=phase1.tfplan
+terraform -chdir=infrastructure/terraform/localstack show phase1.tfplan
 ```
 
-This first apply leaves the local ECS service disabled. Push a uniquely tagged
-image to the repository URL from `terraform output -raw ecr_repository_url`,
-then enable the service:
-
-```bash
-LOCAL_REPO_URL=$(terraform -chdir=infrastructure/terraform/localstack output -raw ecr_repository_url)
-LOCAL_TAG=build-001
-docker build -t "$LOCAL_REPO_URL:$LOCAL_TAG" .
-docker push "$LOCAL_REPO_URL:$LOCAL_TAG"
-terraform -chdir=infrastructure/terraform/localstack apply \
-  -var='deploy_service=true' -var="image_tag=$LOCAL_TAG"
-```
-
-LocalStack's ECS executor uses Docker on the desktop, so inspect the spawned
-container or its ECS task description to find the locally mapped port. For a
-simpler application smoke test, use `docker compose up --build`. Repeat
-networking, IAM, secret injection, authenticated access, and live-provider
-tests on AWS before production use.
+The reviewed plan should show exactly **three additions**, with no changes or
+destructions, provided these resources are not already managed in state.
+Do not apply until that plan has been reviewed. Phase 1 acceptance also
+requires a successful apply and read checks for the S3 bucket, ECR repository,
+and secret. The secret resource has no stored API key. Phase 2 can then add
+the router image and ECS task separately.
 
 ## Infrastructure tests
 

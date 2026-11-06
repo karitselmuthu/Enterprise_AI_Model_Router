@@ -1,39 +1,20 @@
 mock_provider "aws" {}
 
-run "local_resources" {
+run "phase1_resources" {
   command = plan
 
   assert {
-    condition     = aws_ecr_repository.router.image_tag_mutability == "IMMUTABLE"
-    error_message = "The local registry should match the AWS immutable-tag rule."
+    condition     = aws_s3_bucket.router_artifacts.bucket == "enterprise-ai-router-artifacts-local"
+    error_message = "Phase 1 must create the isolated LocalStack artifact bucket."
   }
 
   assert {
-    condition     = aws_s3_bucket.router_artifacts.bucket == "${var.name}-artifacts-local"
-    error_message = "The artifact bucket should use the configured local name."
+    condition     = aws_ecr_repository.router.name == "enterprise-ai-router" && aws_ecr_repository.router.image_tag_mutability == "MUTABLE"
+    error_message = "Phase 1 must create the requested ECR repository."
   }
 
   assert {
-    condition     = aws_secretsmanager_secret.router.name == "${var.name}/local/provider-config"
-    error_message = "The local secret should stay in its own namespace."
-  }
-
-  assert {
-    condition     = length(aws_ecs_service.router) == 0
-    error_message = "The local service must wait until an image is available."
-  }
-}
-
-run "local_service" {
-  command = plan
-
-  variables {
-    deploy_service = true
-    image_tag      = "test-build"
-  }
-
-  assert {
-    condition     = length(aws_ecs_service.router) == 1 && aws_ecs_task_definition.router.network_mode == "awsvpc"
-    error_message = "The local ECS service must use the configured Fargate task."
+    condition     = aws_secretsmanager_secret.router.name == "enterprise-ai-router/local/provider-config"
+    error_message = "Phase 1 must create only the named secret container."
   }
 }
