@@ -1,0 +1,13 @@
+models:
+  SLM:
+    id: mock-slm
+    provider: mock
+  LLM:
+    id: mock-llm
+    provider: mock
+  LRM:
+    id: mock-lrm
+    provider: mock
+  VLM:
+    id: mock-vlm
+    provider: mock
