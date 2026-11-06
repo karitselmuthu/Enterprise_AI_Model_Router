@@ -1,0 +1,20 @@
+# Copy this file and set ROUTER_MODELS_CONFIG to its path.
+# Replace model IDs with models available to your account and local Ollama host.
+models:
+  SLM:
+    id: qwen2.5:0.5b
+    provider: ollama
+    base_url: http://127.0.0.1:11434
+  LLM:
+    id: openai/gpt-4o-mini
+    provider: litellm
+    api_key_env: OPENAI_API_KEY
+  LRM:
+    id: openai/o4-mini
+    provider: litellm
+    api_key_env: OPENAI_API_KEY
+    reasoning_effort: medium
+  VLM:
+    id: openai/gpt-4o-mini
+    provider: litellm
+    api_key_env: OPENAI_API_KEY

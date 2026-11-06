@@ -1,6 +1,8 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.models.contracts import InferenceRequest, ModelCategory
 
 
 class TaskType(StrEnum):
@@ -33,6 +35,27 @@ class RoutingRequest(BaseModel):
         if not value.strip():
             raise ValueError("prompt must contain non-whitespace text")
         return value
+
+
+class ExecutionRequest(RoutingRequest):
+    image_base64: str | None = Field(default=None, max_length=7_000_000)
+    image_mime_type: str | None = None
+
+    @model_validator(mode="after")
+    def validate_execution_image(self) -> "ExecutionRequest":
+        if self.image_base64 is not None:
+            self.contains_image = True
+            InferenceRequest(
+                category=ModelCategory.VLM,
+                prompt=self.prompt,
+                image_base64=self.image_base64,
+                image_mime_type=self.image_mime_type,
+            )
+        elif self.image_mime_type is not None:
+            raise ValueError("image MIME type requires image_base64")
+        if self.contains_image and self.image_base64 is None:
+            raise ValueError("image content is required for vision execution")
+        return self
 
 
 def classify(request: RoutingRequest) -> TaskType:

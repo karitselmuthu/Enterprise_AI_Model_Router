@@ -6,9 +6,10 @@ and data exposure. The goal of this project is a policy-aware router that
 classifies requests, selects a model, validates results, and escalates when
 needed.
 
-Phases 1 and 2 provide a runnable API foundation and deterministic routing.
-Callers can choose a category explicitly or request a route decision; all four
-providers are currently deterministic mocks.
+Phases 1–3 provide a runnable API, deterministic routing, and optional live
+providers. Callers can choose a category explicitly, request a route decision,
+or execute the selected model. The default configuration uses deterministic
+mocks, so no credentials or model downloads are needed for local tests.
 
 ## Architecture and model categories
 
@@ -16,8 +17,8 @@ The intended request path is: classify the task and sensitivity, apply routing
 policy, select a model, execute it, validate the response, and escalate when
 quality or availability requires it. Policy controls selection, and validation
 occurs before a result is returned. The current API implements deterministic
-task classification, routing policy, and mock providers. Live execution,
-quality checks, and escalation are later stages.
+task classification, routing policy, and provider execution. Quality checks
+and escalation are later stages.
 
 | Category | Intended enterprise tasks | Candidate provider or model |
 | --- | --- | --- |
@@ -31,7 +32,7 @@ separate model architecture. A VLM request can also require reasoning, so a
 production route may involve more than one model stage.
 
 The planned stack is Python, FastAPI, LiteLLM, Ollama, Docker, and
-OpenTelemetry. The current API uses Python and FastAPI with mock providers.
+OpenTelemetry. LiteLLM and Ollama integrations are optional in Phase 3.
 
 ## Quick start
 
@@ -67,5 +68,21 @@ not ingest images. Invalid configuration prevents startup.
 The [Phase 1 specification](docs/phase-1-spec.md) defines the foundation.
 `configs/routing_policies.yaml` defines task mappings, fallbacks, and providers
 allowed for restricted requests. Set `ROUTER_POLICIES_CONFIG` to use another
-policy file. Later phases add live providers, evaluation, governance, and
-deployment.
+policy file. Later phases add evaluation, governance, and deployment.
+
+## Optional live providers
+
+Install `requirements-providers.txt` and copy
+`configs/models.hybrid.example.yaml` to a private configuration file. Set
+`ROUTER_MODELS_CONFIG` to that file. Pull the configured local model with
+Ollama, and set the environment variable named by each cloud entry's
+`api_key_env`. Model IDs in the example are placeholders to review against
+current provider availability.
+
+`POST /v1/execute` accepts the routing fields and runs the selected provider.
+For a vision request, include `image_base64` and `image_mime_type` (`image/png`,
+`image/jpeg`, or `image/webp`); images are limited to 5 MB. `POST /v1/infer`
+continues to allow an explicit category and accepts the same image fields.
+Restricted requests cannot use a LiteLLM cloud provider. Provider failures
+return HTTP 502 without exposing the upstream exception. Live provider calls
+require your own credentials and were not exercised by the deterministic tests.

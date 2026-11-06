@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -14,8 +15,21 @@ class ModelConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(min_length=1)
-    provider: str = Field(pattern="^mock$")
+    provider: Literal["mock", "ollama", "litellm"]
     enabled: bool = True
+    base_url: str | None = None
+    api_key_env: str | None = None
+    reasoning_effort: Literal["low", "medium", "high"] | None = None
+
+    @model_validator(mode="after")
+    def validate_provider_settings(self) -> "ModelConfig":
+        if self.provider == "ollama" and not self.base_url:
+            raise ValueError("ollama provider requires base_url")
+        if self.provider == "litellm" and not self.api_key_env:
+            raise ValueError("litellm provider requires api_key_env")
+        if self.base_url and not self.base_url.startswith(("http://", "https://")):
+            raise ValueError("base_url must be HTTP or HTTPS")
+        return self
 
 
 class RouterConfig(BaseModel):
