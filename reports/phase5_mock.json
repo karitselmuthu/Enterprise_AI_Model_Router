@@ -1,0 +1,21 @@
+{
+  "mode": "deterministic-routing",
+  "scenario_count": 130,
+  "groups": {
+    "slm": 30,
+    "llm": 25,
+    "lrm": 25,
+    "vlm": 20,
+    "privacy": 10,
+    "fallback": 10,
+    "adversarial": 10
+  },
+  "routing_accuracy": 1.0,
+  "policy_violations": 0,
+  "p50_route_latency_ms": 0.002,
+  "p95_route_latency_ms": 0.003,
+  "estimated_max_cost_usd": 0.0,
+  "token_usage": null,
+  "task_quality": null,
+  "failures": []
+}

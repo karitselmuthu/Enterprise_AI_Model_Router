@@ -6,7 +6,7 @@ and data exposure. The goal of this project is a policy-aware router that
 classifies requests, selects a model, validates results, and escalates when
 needed.
 
-Phases 1–4 provide a runnable API, deterministic routing, governance checks,
+Phases 1–5 provide a runnable API, deterministic routing, governance checks,
 and optional live providers. Callers can choose a category explicitly, request a route decision,
 or execute the selected model. The default configuration uses deterministic
 mocks, so no credentials or model downloads are needed for local tests.
@@ -18,7 +18,8 @@ policy, select a model, execute it, validate the response, and escalate when
 quality or availability requires it. Policy controls selection, and validation
 occurs before a result is returned. The current API implements deterministic
 task classification, routing policy, provider execution, basic quality checks,
-and escalation. Enterprise evaluation and deployment are later stages.
+and escalation. The evaluation dataset and runner are included; deployment is
+the remaining phase.
 
 | Category | Intended enterprise tasks | Candidate provider or model |
 | --- | --- | --- |
@@ -106,3 +107,12 @@ Execution checks for empty or abstaining responses and tries a permitted
 fallback from the policy file. The checks do not prove factual correctness.
 Each provider attempt emits a JSON audit event with routing metadata and token
 counts, excluding prompt, image, and response bodies.
+
+## Evaluation
+
+Run `.venv/bin/python -m scripts.evaluate` for the 130-case deterministic
+routing suite. The committed [validation notes](docs/validation.md) and
+`reports/phase5_mock.json` describe results and limits. For a bounded live
+provider sample, run `.venv/bin/python -m scripts.live_validation
+--max-requests 10` against a running API. The live runner never stores prompt
+or response bodies and leaves factual quality for human review.

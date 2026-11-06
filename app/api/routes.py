@@ -7,7 +7,7 @@ from app.governance.audit import record_attempt
 from app.governance.guardrails import effective_sensitivity, model_allowed
 from app.models.contracts import InferenceRequest, InferenceResult, ModelCategory
 from app.models.providers import ProviderFailure, make_provider
-from app.router.classifier import ExecutionRequest, RoutingRequest, Sensitivity
+from app.router.classifier import ExecutionRequest, RoutingRequest
 from app.router.policy_engine import RoutingPolicies
 from app.router.routing_engine import PolicyDenied, RouteUnavailable, RoutingDecision, RoutingEngine
 
