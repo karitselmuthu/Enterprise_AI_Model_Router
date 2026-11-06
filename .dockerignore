@@ -10,3 +10,9 @@ scripts
 tests
 datasets
 docs
+infrastructure
+deployment
+.github
+README.md
+LICENSE
+docker-compose.yml

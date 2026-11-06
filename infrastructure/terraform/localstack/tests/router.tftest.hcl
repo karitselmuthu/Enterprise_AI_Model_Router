@@ -23,3 +23,13 @@ run "phase1_resources" {
     error_message = "The local secret must contain only the fake test credential."
   }
 }
+
+run "phase2_container" {
+  command = plan
+
+  assert {
+    condition     = aws_ecs_task_definition.router.network_mode == "awsvpc" && aws_ecs_service.router.desired_count == 1
+    error_message = "The router must have a running Fargate service."
+  }
+
+}

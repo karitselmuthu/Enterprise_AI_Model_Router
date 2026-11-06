@@ -9,3 +9,11 @@ output "ecr_repository_url" {
 output "secret_arn" {
   value = aws_secretsmanager_secret.router.arn
 }
+
+output "ecs_cluster_name" {
+  value = aws_ecs_cluster.router.name
+}
+
+output "ecs_service_name" {
+  value = aws_ecs_service.router.name
+}

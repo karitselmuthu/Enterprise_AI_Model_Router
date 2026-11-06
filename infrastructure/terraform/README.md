@@ -4,9 +4,8 @@ These are **separate Terraform root configurations and state files**:
 
 - `aws/` provisions a private ECS Fargate router, ECR, VPC networking, an
   internal ALB, CloudWatch logs, and an ECS execution role.
-- `localstack/` is Phase 1 only: an S3 artifact bucket, ECR repository, and
-  Secrets Manager secret with a deliberately fake test credential against
-  LocalStack Desktop. ECS belongs to a later phase.
+- `localstack/` provisions the Phase 1 bucket, ECR repository, and test secret,
+  plus the Phase 2 ECS cluster, Fargate task definition, and service.
 
 The AWS configuration has not been applied. Review its `terraform plan` before
 any `apply`; AWS NAT Gateway and ALB resources incur charges even when
@@ -63,8 +62,9 @@ model-provider credentials or connectivity. Verify `/v1/execute` separately.
 ## LocalStack Desktop
 
 Prerequisites: Docker running, LocalStack Desktop or `lstk`, a LocalStack auth
-token, and a LocalStack plan that includes ECR. The provider points the three
-Phase 1 resource services at `http://localhost:4566`, uses dummy credentials,
+token, and a LocalStack plan that includes ECR and ECS. LocalStack must have
+access to `/var/run/docker.sock` to start ECS tasks. The provider points the
+resource services at `http://localhost:4566` by default, uses dummy credentials,
 and restricts the account ID to `000000000000`. STS is mapped locally so the
 provider can read that emulated account ID. S3 Control is mapped locally
 because the AWS provider uses it to read bucket tags. Never use this provider
@@ -80,19 +80,47 @@ terraform -chdir=infrastructure/terraform/localstack show phase1.tfplan
 terraform -chdir=infrastructure/terraform/localstack apply phase1.tfplan
 ```
 
-On a fresh LocalStack instance, the reviewed plan should show **four
-additions**: the bucket, repository, secret, and secret version, with no
-changes or destructions. Review that plan before applying it. The version
+For a fresh instance, first create the bucket, repository and secret, build and
+push the image, then apply the ECS resources. The initial bootstrap plan has
+four additions. Review each plan before applying. The secret version
 stores only `OPENAI_API_KEY=localstack-test-only`; this value cannot authenticate
 to a real model provider, and Terraform keeps it in local state. After applying,
 check the three service resources and run `terraform plan` again to confirm no
-drift. Phase 2 can add the router image and ECS task separately.
+drift.
+
+Build and push the router image before deploying the ECS service. Use a tag
+unique to each build and pass it as `image_tag`. For a LocalStack instance on
+another local port, pass `-var='localstack_endpoint=http://localhost:4567'`
+on every Terraform plan or apply and keep a separate Terraform state file.
+
+```bash
+LOCAL_REPO_URL=$(terraform -chdir=infrastructure/terraform/localstack output -raw ecr_repository_url)
+LOCAL_TAG=build-001
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
+  aws --endpoint-url http://localhost:4566 ecr get-login-password \
+  | docker login --username AWS --password-stdin "${LOCAL_REPO_URL%%/*}"
+docker build -t "$LOCAL_REPO_URL:$LOCAL_TAG" .
+docker push "$LOCAL_REPO_URL:$LOCAL_TAG"
+terraform -chdir=infrastructure/terraform/localstack plan \
+  -var="image_tag=$LOCAL_TAG" -out=phase2.tfplan
+terraform -chdir=infrastructure/terraform/localstack apply phase2.tfplan
+```
+
+The ECS service uses the emulator's default VPC and subnets for this phase.
+LocalStack maps the router's port 8000 to a random host port. Find it with
+`docker ps --filter name=enterprise-ai-router` and call `/health/ready` there.
+The service has no ALB yet; dedicated networking and IAM roles belong to Phase 3.
 
 On 2026-11-07, the LocalStack apply completed on this workstation. S3, ECR,
 and the fake credential were read back successfully; a subsequent plan found
 no changes. This LocalStack instance reported persistence disabled, so those
 resources may disappear if the emulator restarts while local Terraform state
 remains. Reconcile state against a fresh instance before applying again.
+
+Phase 2 was also applied to an isolated LocalStack instance on port 4567 with
+Docker socket access. Its ECS task started healthy. The original port-4566
+instance lacks that mount; its cluster and task definition were created but
+service creation failed with `Docker not available`. Its state is preserved.
 
 ## Infrastructure tests
 

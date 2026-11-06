@@ -20,3 +20,53 @@ resource "aws_secretsmanager_secret_version" "router_test" {
     OPENAI_API_KEY = "localstack-test-only"
   })
 }
+
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
+
+resource "aws_ecs_cluster" "router" {
+  name = "enterprise-ai-router-local"
+}
+
+resource "aws_ecs_task_definition" "router" {
+  family                   = "enterprise-ai-router-local"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = 512
+  memory                   = 1024
+
+  container_definitions = jsonencode([{
+    name      = "router"
+    image     = "${aws_ecr_repository.router.repository_url}:${var.image_tag}"
+    essential = true
+    portMappings = [{
+      containerPort = 8000
+      protocol      = "tcp"
+    }]
+    environment = [{
+      name  = "ROUTER_MODELS_CONFIG"
+      value = "/app/configs/models.yaml"
+    }]
+  }])
+}
+
+resource "aws_ecs_service" "router" {
+  name            = "enterprise-ai-router-local"
+  cluster         = aws_ecs_cluster.router.id
+  task_definition = aws_ecs_task_definition.router.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = data.aws_subnets.default.ids
+    assign_public_ip = false
+  }
+}
