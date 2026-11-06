@@ -36,6 +36,9 @@ production route may involve more than one model stage.
 The stack uses Python, FastAPI, Docker, Prometheus, Grafana, and OpenTelemetry.
 LiteLLM and Ollama integrations are optional and require model setup.
 
+For AWS and LocalStack infrastructure, see the
+[separate Terraform configurations](infrastructure/terraform/README.md).
+
 ## Quick start
 
 Requires Python 3.11 or newer.
