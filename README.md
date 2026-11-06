@@ -6,16 +6,18 @@ and data exposure. The goal of this project is a policy-aware router that
 classifies requests, selects a model, validates results, and escalates when
 needed.
 
-Phase 1 provides a runnable API foundation. Callers currently choose a category
-explicitly, and all four providers are deterministic mocks.
+Phases 1 and 2 provide a runnable API foundation and deterministic routing.
+Callers can choose a category explicitly or request a route decision; all four
+providers are currently deterministic mocks.
 
 ## Architecture and model categories
 
 The intended request path is: classify the task and sensitivity, apply routing
 policy, select a model, execute it, validate the response, and escalate when
 quality or availability requires it. Policy controls selection, and validation
-occurs before a result is returned. The current Phase 1 API implements the
-provider contract and mock execution; the later stages are planned work.
+occurs before a result is returned. The current API implements deterministic
+task classification, routing policy, and mock providers. Live execution,
+quality checks, and escalation are later stages.
 
 | Category | Intended enterprise tasks | Candidate provider or model |
 | --- | --- | --- |
@@ -29,7 +31,7 @@ separate model architecture. A VLM request can also require reasoning, so a
 production route may involve more than one model stage.
 
 The planned stack is Python, FastAPI, LiteLLM, Ollama, Docker, and
-OpenTelemetry. Phase 1 currently uses Python and FastAPI with mock providers.
+OpenTelemetry. The current API uses Python and FastAPI with mock providers.
 
 ## Quick start
 
@@ -51,11 +53,19 @@ curl -X POST http://127.0.0.1:8000/v1/infer \
 
 Run tests with `.venv/bin/python -m pytest -q`.
 
+For a policy decision, call `POST /v1/route` with a `prompt`, optional
+`task_type`, `sensitivity` (`public`, `internal`, or `restricted`), and
+`contains_image`. Classification uses deterministic rules; an explicit image
+signal takes precedence. The endpoint returns the selected category, model,
+reason, and whether a fallback was used. It does not invoke the provider.
+
 `configs/models.yaml` defines the model ID for each of `SLM`, `LLM`, `LRM`,
 and `VLM`. Set `ROUTER_MODELS_CONFIG` to load a different YAML file. In Phase 1,
 only `provider: mock` is accepted. The VLM mock accepts text prompts but does
 not ingest images. Invalid configuration prevents startup.
 
-The [Phase 1 specification](docs/phase-1-spec.md) defines the current scope.
-Later phases add policy-driven routing, live providers, evaluation, governance,
-and deployment.
+The [Phase 1 specification](docs/phase-1-spec.md) defines the foundation.
+`configs/routing_policies.yaml` defines task mappings, fallbacks, and providers
+allowed for restricted requests. Set `ROUTER_POLICIES_CONFIG` to use another
+policy file. Later phases add live providers, evaluation, governance, and
+deployment.

@@ -1,0 +1,14 @@
+task_categories:
+  classification: SLM
+  extraction: SLM
+  short_summary: SLM
+  summary: LLM
+  knowledge: LLM
+  reasoning: LRM
+  vision: VLM
+fallbacks:
+  SLM: [LLM]
+  LLM: [LRM]
+  LRM: []
+  VLM: []
+restricted_providers: [mock, ollama]

@@ -15,6 +15,7 @@ class ModelConfig(BaseModel):
 
     id: str = Field(min_length=1)
     provider: str = Field(pattern="^mock$")
+    enabled: bool = True
 
 
 class RouterConfig(BaseModel):
