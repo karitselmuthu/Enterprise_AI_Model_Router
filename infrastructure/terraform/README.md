@@ -143,3 +143,32 @@ resources:
 ```bash
 sh tests/infrastructure/test_terraform.sh
 ```
+
+Phase 5 live checks require a running deployment and AWS CLI. They are skipped
+in ordinary `pytest` runs. For the isolated port-4567 emulator used above:
+
+```bash
+LOCALSTACK_LIVE_ENDPOINT=http://localhost:4567 \
+LOCALSTACK_LIVE_URL=http://enterprise-ai-router-local.elb.localhost.localstack.cloud:4567 \
+  .venv/bin/python -m pytest -q tests/infrastructure/test_localstack_live.py
+```
+
+The live suite checks health, an executed request, metrics, ECS count, the ECR repository,
+CloudWatch Logs, the fake secret, and two invalid-request responses. To remove
+only resources in an explicitly selected LocalStack Terraform state, run:
+
+```bash
+LOCALSTACK_ENDPOINT=http://localhost:4567 \
+TERRAFORM_ROOT=/path/to/isolated/localstack/terraform/root \
+  sh tests/infrastructure/teardown_localstack.sh --yes
+```
+
+The teardown script requires a local endpoint, an existing state file, and an
+explicit `--yes`. It destroys all resources in that selected state; do not
+point it at a state you intend to keep. The LocalStack ECR repository uses
+`force_delete = true` so its test images do not block this teardown.
+
+On 2026-11-07, all three live checks, the Python suite, and Terraform's
+mocked tests passed against the isolated port-4567 deployment. Its Terraform
+state was then destroyed and the temporary emulator removed. The original
+port-4566 LocalStack container was left running.

@@ -6,6 +6,7 @@ resource "aws_ecr_repository" "router" {
   name = "enterprise-ai-router"
 
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 }
 
 resource "aws_secretsmanager_secret" "router" {
