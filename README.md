@@ -228,6 +228,17 @@ fallback from the policy file. The checks do not prove factual correctness.
 Each provider attempt emits a JSON audit event with routing metadata and token
 counts, excluding prompt, image, and response bodies.
 
+Each model has a router-enforced provider deadline of 30 seconds by default.
+Set `timeout_seconds` to a positive finite number in that model's
+`configs/models.yaml` entry to override it. A direct `/v1/infer` timeout returns
+HTTP 504. `/v1/execute` records the timed-out attempt and tries only eligible
+fallbacks; it returns HTTP 504 if every eligible model times out. Timeout
+attempts use the `timeout` outcome in `/metrics` and JSON audit events, with
+the same `X-Request-ID` as the response. The deadline covers each provider
+attempt, not the full request across multiple fallbacks. Provider cancellation
+must cooperate with asyncio cancellation; a provider that suppresses it may
+delay the response. The router does not retry a timed-out model.
+
 ## Evaluation
 
 Run `.venv/bin/python -m scripts.evaluate` for the 130-case deterministic

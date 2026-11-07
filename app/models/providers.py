@@ -31,7 +31,7 @@ class OllamaProvider:
         if request.image_base64:
             payload["images"] = [request.image_base64]
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=max(60.0, self.config.timeout_seconds + 1.0)) as client:
                 response = await client.post(f"{self.config.base_url.rstrip('/')}/api/generate", json=payload)
                 response.raise_for_status()
                 data = response.json()
@@ -78,7 +78,7 @@ class LiteLLMProvider:
                 model=self.config.id,
                 messages=[{"role": "user", "content": content}],
                 api_key=key,
-                timeout=60,
+                timeout=max(60.0, self.config.timeout_seconds + 1.0),
                 max_tokens=self.config.max_output_tokens,
                 **options,
             )

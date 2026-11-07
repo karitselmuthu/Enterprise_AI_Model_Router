@@ -20,6 +20,7 @@ class ModelConfig(BaseModel):
     api_key_env: str | None = None
     reasoning_effort: Literal["low", "medium", "high"] | None = None
     max_output_tokens: int = Field(default=512, ge=1, le=8192)
+    timeout_seconds: float = Field(default=30.0, gt=0, allow_inf_nan=False)
     input_usd_per_million_tokens: float | None = Field(default=None, ge=0)
     output_usd_per_million_tokens: float | None = Field(default=None, ge=0)
 

@@ -14,6 +14,7 @@ from app.models.providers import LiteLLMProvider, OllamaProvider
 
 def test_ollama_provider_request_and_usage(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[dict] = []
+    client_options: list[dict] = []
 
     class FakeClient:
         async def __aenter__(self):
@@ -30,16 +31,21 @@ def test_ollama_provider_request_and_usage(monkeypatch: pytest.MonkeyPatch) -> N
                 request=httpx.Request("POST", url),
             )
 
-    monkeypatch.setattr("app.models.providers.httpx.AsyncClient", lambda **_kwargs: FakeClient())
+    def make_client(**kwargs):
+        client_options.append(kwargs)
+        return FakeClient()
+
+    monkeypatch.setattr("app.models.providers.httpx.AsyncClient", make_client)
     provider = OllamaProvider(
         ModelCategory.SLM,
-        ModelConfig(id="qwen2.5:0.5b", provider="ollama", base_url="http://localhost:11434"),
+        ModelConfig(id="qwen2.5:0.5b", provider="ollama", base_url="http://localhost:11434", timeout_seconds=90),
     )
     result = asyncio.run(provider.generate(InferenceRequest(category="SLM", prompt="Classify alert")))
     assert result.output == "severity: high"
     assert result.prompt_tokens == 7
     assert calls[0]["url"] == "http://localhost:11434/api/generate"
     assert calls[0]["json"]["stream"] is False
+    assert client_options[0]["timeout"] > 90
 
 
 def test_litellm_provider_uses_env_credential(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -59,13 +65,14 @@ def test_litellm_provider_uses_env_credential(monkeypatch: pytest.MonkeyPatch) -
         ModelConfig(
             id="openai/test", provider="litellm", api_key_env="TEST_LLM_KEY",
             reasoning_effort="medium", input_usd_per_million_tokens=1,
-            output_usd_per_million_tokens=4,
+            output_usd_per_million_tokens=4, timeout_seconds=90,
         ),
     )
     result = asyncio.run(provider.generate(InferenceRequest(category="LRM", prompt="Analyze root cause")))
     assert result.output == "A concise answer"
     assert calls[0]["api_key"] == "test-secret"
     assert calls[0]["reasoning_effort"] == "medium"
+    assert calls[0]["timeout"] > 90
 
 
 def test_execute_uses_routing_with_mock_provider() -> None:

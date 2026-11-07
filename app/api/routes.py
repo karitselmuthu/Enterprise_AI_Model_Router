@@ -1,3 +1,4 @@
+import asyncio
 from time import perf_counter
 
 from fastapi import APIRouter, HTTPException, Request
@@ -75,7 +76,13 @@ def build_router(config: RouterConfig, policies: RoutingPolicies) -> APIRouter:
             with tracer.start_as_current_span("provider.generate") as span:
                 span.set_attribute("model.category", request.category.value)
                 span.set_attribute("model.provider", model.provider)
-                result = await providers[request.category].generate(request)
+                result = await asyncio.wait_for(
+                    providers[request.category].generate(request), timeout=model.timeout_seconds
+                )
+        except TimeoutError as exc:
+            observe_provider(request.category.value, model.provider, "timeout", perf_counter() - start)
+            record_attempt(**audit_fields, outcome="timeout")
+            raise HTTPException(status_code=504, detail="Selected model timed out") from exc
         except ProviderFailure as exc:
             observe_provider(request.category.value, model.provider, "provider_failure", perf_counter() - start)
             record_attempt(**audit_fields, outcome="provider_failure")
@@ -105,6 +112,7 @@ def build_router(config: RouterConfig, policies: RoutingPolicies) -> APIRouter:
     async def execute(request: ExecutionRequest, http_request: Request) -> ExecutionResult:
         first = route(request)
         candidates = [first, *engine.escalation_candidates(request, first)]
+        timeout_count = 0
         for attempt, decision in enumerate(candidates, start=1):
             inference = InferenceRequest(
                 category=decision.category,
@@ -128,7 +136,15 @@ def build_router(config: RouterConfig, policies: RoutingPolicies) -> APIRouter:
                 with tracer.start_as_current_span("provider.generate") as span:
                     span.set_attribute("model.category", decision.category.value)
                     span.set_attribute("model.provider", decision.provider)
-                    result = await providers[decision.category].generate(inference)
+                    result = await asyncio.wait_for(
+                        providers[decision.category].generate(inference),
+                        timeout=config.models[decision.category].timeout_seconds,
+                    )
+            except TimeoutError:
+                observe_provider(decision.category.value, decision.provider, "timeout", perf_counter() - start)
+                record_attempt(**audit_fields, outcome="timeout")
+                timeout_count += 1
+                continue
             except ProviderFailure:
                 observe_provider(decision.category.value, decision.provider, "provider_failure", perf_counter() - start)
                 record_attempt(**audit_fields, outcome="provider_failure")
@@ -143,6 +159,8 @@ def build_router(config: RouterConfig, policies: RoutingPolicies) -> APIRouter:
             )
             if quality.accepted:
                 return ExecutionResult(decision=decision, result=result, quality=quality, attempts=attempt)
+        if timeout_count == len(candidates):
+            raise HTTPException(status_code=504, detail="All eligible models timed out")
         raise HTTPException(status_code=502, detail="No provider returned an acceptable result")
 
     return router
