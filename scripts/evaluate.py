@@ -90,7 +90,7 @@ def evaluate_scenarios(scenarios: list[dict]) -> dict:
         "p50_route_latency_ms": round(percentile(timings, 0.50), 3),
         "p95_route_latency_ms": round(percentile(timings, 0.95), 3),
         "estimated_max_cost_usd": round(estimated_upper_cost, 6),
-        "token_usage": None,
+        "token_usage": None,  # nosec B105 - not a password
         "task_quality": None,
         "failures": failures,
     }
